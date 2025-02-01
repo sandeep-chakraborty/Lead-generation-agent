@@ -1,0 +1,8 @@
+langchain
+langchain-community
+langchain-openai
+python-dotenv
+duckduckgo-search 
+beautifulsoup4
+flask
+flask-cors

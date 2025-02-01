@@ -1,0 +1,6 @@
+/myenv
+.env
+/___pycache__/
+/leads/
+ss.py
+test.py

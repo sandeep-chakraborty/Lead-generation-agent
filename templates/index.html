@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI-Driven Lead Generation & Scoring</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    *::selection {
+      color: #fff;
+      background-color: #000;
+    }
+    ::-webkit-scrollbar {
+      width: 0;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      width: 0;
+    }
+    html,
+    body {
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      background-color: #fff;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 2rem;
+      margin-top: 2rem;
+      width: 110%;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .keywords-input {
+      grid-column: 1 / -1;
+    }
+
+    button {
+      background-color: #18181b;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #27272a;
+    }
+
+    button:disabled {
+      background-color: #71717a;
+      cursor: wait;
+    }
+
+    .loading-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ffffff;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      animation: rotation 1s linear infinite;
+    }
+
+    @keyframes rotation {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .skeleton {
+      animation: skeleton-loading 1s linear infinite alternate;
+    }
+
+    @keyframes skeleton-loading {
+      0% { background-color: #f3f3f3; }
+      100% { background-color: #e0e0e0; }
+    }
+
+    .skeleton-row {
+      height: 40px;
+      margin: 8px 0;
+      border-radius: 4px;
+    }
+
+    .results-container {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .results-container h3 {
+      margin-bottom: 1rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    th, td {
+      padding: 0.75rem;
+      text-align: left;
+      border: 1px solid #e0e0e0;
+    }
+
+    th {
+      background-color: #f4f4f5;
+      font-weight: 600;
+    }
+
+    tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+  </style>
+  <body>
+    <div class="container">
+      <h1>AI-Driven Lead Generation & Scoring</h1>
+      
+      <div class="card">
+        <h2>Generate Leads</h2>
+        <p>Enter criteria to find and score potential leads</p>
+        
+        <div class="form-group">
+          <div>
+            <label for="industry">Industry</label>
+            <select id="industry" name="Select industry" required>
+              <option value="" disabled selected>Select industry</option>
+              <option value="Manufacturing">Manufacturing</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Finance">Finance</option>
+              <option value="Retail">Retail</option>
+            </select>
+          </div>
+          
+          <div>
+            <label for="location">Location</label>
+            <input id="location" type="text" placeholder="e.g. New York, USA" required>
+          </div>
+
+          <div class="keywords-input">
+            <label for="requirements">Additional Requirements</label>
+            <input id="requirements" type="text" placeholder="e.g. minimum revenue $1M, B2B focus, etc.">
+          </div>
+        </div>
+
+        <button onclick="generateLeads()" id="generateButton">Generate Leads</button>
+        
+        <!-- Add results container -->
+        <div id="results" class="results-container" style="display: none;">
+          <h3>Generated Leads</h3>
+          <div id="tableContainer"></div>
+          <!-- Add export button -->
+          <button onclick="exportToExcel()" id="exportButton" style="display: none; margin-top: 1rem;">
+            Export to Excel
+          </button>
+          <!-- Add skeleton loader -->
+          <div id="skeletonLoader" style="display: none;">
+            <div class="skeleton skeleton-row"></div>
+            <div class="skeleton skeleton-row"></div>
+            <div class="skeleton skeleton-row"></div>
+            <div class="skeleton skeleton-row"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add script section -->
+    <script>
+      async function generateLeads() {
+        const button = document.getElementById('generateButton');
+        const skeletonLoader = document.getElementById('skeletonLoader');
+        const tableContainer = document.getElementById('tableContainer');
+        
+        // Show loading state
+        button.disabled = true;
+        button.innerHTML = '<span class="loading-text"><span class="spinner"></span>Generating...</span>';
+        document.getElementById('results').style.display = 'block';
+        tableContainer.style.display = 'none';
+        skeletonLoader.style.display = 'block';
+
+        const industry = document.getElementById('industry').value;
+        const country = document.getElementById('location').value;
+        const requirements = document.getElementById('requirements').value;
+        
+        if (!industry || !country) {
+          alert('Please fill in all required fields');
+          resetLoadingState();
+          return;
+        }
+
+        try {
+          const response = await fetch('http://localhost:5000/generate-leads', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              industry,
+              country,
+              requirements
+            })
+          });
+
+          const data = await response.json();
+          
+          if (data.success) {
+            // Parse markdown table using marked
+            const parsedTable = marked.parse(data.table);
+            tableContainer.innerHTML = parsedTable;
+            tableContainer.style.display = 'block';
+            // Show export button after table is generated
+            document.getElementById('exportButton').style.display = 'block';
+          } else {
+            alert('Error: ' + data.error);
+          }
+        } catch (error) {
+          alert('Error connecting to server: ' + error);
+        } finally {
+          resetLoadingState();
+        }
+      }
+
+      function resetLoadingState() {
+        const button = document.getElementById('generateButton');
+        const skeletonLoader = document.getElementById('skeletonLoader');
+        
+        button.disabled = false;
+        button.innerHTML = 'Generate Leads';
+        skeletonLoader.style.display = 'none';
+      }
+
+      // Add new export function
+      function exportToExcel() {
+        const table = document.querySelector('table');
+        if (!table) return;
+
+        // Get headers
+        const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent);
+        
+        // Get data rows
+        const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+        const data = rows.map(row => 
+          Array.from(row.querySelectorAll('td')).map(td => td.textContent)
+        );
+
+        // Create CSV content
+        const csvContent = [
+          headers.join(','),
+          ...data.map(row => row.join(','))
+        ].join('\n');
+
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'leads.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    </script>
+  </body>
+</html>
