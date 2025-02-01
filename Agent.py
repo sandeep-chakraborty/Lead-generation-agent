@@ -22,30 +22,36 @@ search_tool = DuckDuckGoSearchResults(max_results=10)  # Increased to get more r
 # Define the tools
 tools = [search_tool]
 
+
 def find_potential_clients(industry, country, additional_requirements=""):
     # Define prompts for each agent
     search_prompt = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
-                f"""You are an expert at finding potential consulting clients. Generate diverse search queries to find companies that might need consulting services.
-        For each industry ({industry}) and location ({country}), create 5 different search queries that target:
-        1. Top companies in {industry} from {country} in {current_year}
-        2. Fast-growing {industry} companies in {country} {current_year}
-        3. Companies in {industry} seeking business transformation in {country} {current_year}
-        4. Mid-size {industry} companies in {country} with expansion plans {current_year}
-        5. {industry} startups in {country} with significant funding {current_year}
-
-        Additional Requirements to Consider:
-        {additional_requirements}
-        
-        Make each query unique and specific to find different types of potential clients.""",
+                f"""You are an expert at finding potential consulting clients. Your task is to:
+                1. Search for companies in the {industry} industry from {country} that might need consulting services
+                2. Consider these specific requirements when searching:
+                   {additional_requirements if additional_requirements else "No additional requirements specified"}
+                3. Use the search tool to find companies that match these criteria
+                4. Generate follow-up searches based on initial findings
+                5. Focus on {current_year} data when available
+                6. Look for companies that match the size and requirements specified
+                7. Gather information about:
+                   - Company growth and market position
+                   - Current challenges that align with the requirements
+                   - Transformation and expansion plans
+                   - Recent developments that suggest consulting needs
+                
+                Analyze the additional requirements and tailor your searches to find companies 
+                that specifically match these criteria. Generate and execute searches iteratively 
+                to build a comprehensive list of potential clients that align with all specified requirements.""",
             ),
             ("human", "{input}"),
             ("placeholder", "{agent_scratchpad}"),
         ]
     )
-    
+
     filter_prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -61,7 +67,7 @@ def find_potential_clients(industry, country, additional_requirements=""):
             ("placeholder", "{agent_scratchpad}"),
         ]
     )
-    
+
     finalizer_prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -87,7 +93,9 @@ def find_potential_clients(industry, country, additional_requirements=""):
     # Create the agents
     search_agent = create_tool_calling_agent(search_llm, tools, prompt=search_prompt)
     filter_agent = create_tool_calling_agent(filter_llm, tools, prompt=filter_prompt)
-    finalizer_agent = create_tool_calling_agent(finalizer_llm, tools, prompt=finalizer_prompt)
+    finalizer_agent = create_tool_calling_agent(
+        finalizer_llm, tools, prompt=finalizer_prompt
+    )
 
     # Create agent executors
     search_executor = AgentExecutor(agent=search_agent, tools=tools, verbose=True)
@@ -108,34 +116,21 @@ def find_potential_clients(industry, country, additional_requirements=""):
         counter += 1
     filename = os.path.join(leads_dir, f"leads_{base_filename}_{counter}.md")
 
-    # Generate different search queries for variety
-    search_queries = [
-        f"top {industry} companies in {country} {current_year} seeking consulting services",
-        f"fastest growing {industry} companies in {country} {current_year}",
-        f"{industry} companies in {country} looking for business transformation {current_year}",
-        f"mid-size {industry} companies in {country} with expansion plans {current_year}",
-        f"{industry} startups in {country} with funding {current_year}",
-    ]
-
-    # Step 1: Search for potential clients using multiple queries
-    all_search_results = []
-    all_web_content = []
-    for query in search_queries:
-        # Get search results
-        search_result = search_executor.invoke(
-            {
-                "input": f"{query}. Include company websites and contact information when possible."
-            }
-        )
-        all_search_results.append(search_result["output"])
-
-        # Process search results and get web content
-        if hasattr(search_tool, "results") and search_tool.results:
-            web_content = process_search_results(search_tool.results)
-            all_web_content.extend(web_content)
-
-    combined_results = "\n\n".join(all_search_results)
-    web_content_context = "\n\n".join(all_web_content)
+    # Step 1: Let the search agent find potential clients
+    search_result = search_executor.invoke(
+        {
+            "input": f"""Find potential consulting clients in the {industry} industry from {country}.
+            Focus on gathering comprehensive information about companies, including their websites,
+            contact information, and recent developments."""
+        }
+    )
+    
+    # Process search results and get web content
+    web_content = []
+    if hasattr(search_tool, 'results') and search_tool.results:
+        web_content = process_search_results(search_tool.results)
+    
+    web_content_context = "\n\n".join(web_content)
 
     # Step 2: Filter the results with additional context from web content
     filtered_results = filter_executor.invoke(
@@ -145,7 +140,7 @@ def find_potential_clients(industry, country, additional_requirements=""):
             available contact information:
             
             Search Results:
-            {combined_results}
+            {search_result['output']}
             
             Additional Web Content:
             {web_content_context}"""
@@ -164,10 +159,7 @@ def find_potential_clients(industry, country, additional_requirements=""):
         f.write(final_results["output"])
 
     # Return both the filename and the markdown table content
-    return {
-        "filename": filename,
-        "table": final_results["output"]
-    }
+    return {"filename": filename, "table": final_results["output"]}
 
 
 def process_search_results(search_results):
@@ -211,8 +203,10 @@ def process_search_results(search_results):
 if __name__ == "__main__":
     industry = input("Enter the industry: ")
     country = input("Enter the country: ")
-    additional_requirements = input("Enter any additional requirements (press Enter if none): ")
+    additional_requirements = input(
+        "Enter any additional requirements (press Enter if none): "
+    )
     result = find_potential_clients(industry, country, additional_requirements)
     print(f"\nFinal Results have been saved to {os.path.basename(result['filename'])}")
     print("\nPreview of results:")
-    print(result['table'])
+    print(result["table"])
