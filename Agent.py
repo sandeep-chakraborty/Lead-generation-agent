@@ -2,6 +2,8 @@ from datetime import datetime
 from langchain import hub
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_community.tools import DuckDuckGoSearchResults
+from langchain_community.tools.tavily_search import TavilySearchResults
+
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
@@ -17,8 +19,13 @@ current_year = datetime.now().year
 search_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 filter_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 finalizer_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-# Set up the DuckDuckGo search tool with increased results
-search_tool = DuckDuckGoSearchResults(max_results=10)  # Increased to get more results
+# Set up the Tavily search tool
+search_tool = TavilySearchResults(
+    max_results=10,  # Increased to get more results
+    search_depth="advanced",
+    include_answer=True,
+    include_raw_content=True,
+)
 # Define the tools
 tools = [search_tool]
 
